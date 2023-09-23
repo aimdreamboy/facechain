@@ -98,6 +98,8 @@ def softmax(x):
 def get_rot(image):
     model_dir = snapshot_download('Cherrytest/rot_bgr', revision='v1.0.0')
     model_path = os.path.join(model_dir, 'rot_bgr.onnx')
+    # 明确指定所需的执行提供程序（根据你的需求添加或删除）
+    providers = ['AzureExecutionProvider', 'CPUExecutionProvider']
     ort_session = onnxruntime.InferenceSession(model_path)
 
     img_cv = cv2.cvtColor(np.asarray(image), cv2.COLOR_RGB2BGR)
