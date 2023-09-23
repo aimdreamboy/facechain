@@ -9,61 +9,176 @@
 
 如果您熟悉中文，可以阅读[中文版本的README](./README_ZH.md)。
 
-FaceChain is a deep-learning toolchain for generating your Digital-Twin. With a minimum of 1 portrait-photo, you can create a Digital-Twin of your own and to create personal photos in different settings (work photos as starter!). You may train your Digital-Twin model and generate photos via FaceChain's Python scripts, or via the familiar Gradio interface. You can also experience FaceChain directly with our [ModelScope Studio](https://modelscope.cn/studios/CVstudio/cv_human_portrait/summary).
-
+FaceChain is a deep-learning toolchain for generating your Digital-Twin. With a minimum of 1 portrait-photo, you can create a Digital-Twin of your own and start generating personal portraits in different settings (multiple styles now supported!). You may train your Digital-Twin model and generate photos via FaceChain's Python scripts, or via the familiar Gradio interface.
 FaceChain is powered by [ModelScope](https://github.com/modelscope/modelscope).
 
-![image](resources/example1.jpg)
 
-![image](resources/example2.jpg)
+<p align="center">
+        ModelScope Studio <a href="https://modelscope.cn/studios/CVstudio/cv_human_portrait/summary">🤖<a></a>&nbsp ｜ HuggingFace Space <a href="https://huggingface.co/spaces/modelscope/FaceChain">🤗</a>&nbsp 
+</p>
+<br>
 
-![image](resources/example3.jpg)
+
+![image](resources/git_cover.jpg)
+![image](resources/git_cover_1.jpg)
+![image](resources/git_cover_2.jpg)
+
+
+# News
+- High performance inpainting for single & double person, Simplify User Interface. (September 09th, 2023 UTC)
+- More Technology Details can be seen in [Paper](https://arxiv.org/abs/2308.14256). (August 30th, 2023 UTC)
+- Add validate & ensemble for Lora training, and InpaintTab(hide in gradio for now).  (August 28th, 2023 UTC)
+- Add pose control module.   (August 27th, 2023 UTC)
+- Add robust face lora training module, enhance the performance of one pic training & style-lora blending.   (August 27th, 2023 UTC)
+- HuggingFace Space is available now! You can experience FaceChain directly with <a href="https://huggingface.co/spaces/modelscope/FaceChain">🤗</a>      (August 25th, 2023 UTC)
+- Add awesome prompts! Refer to: [awesome-prompts-facechain](resources/awesome-prompts-facechain.txt)   (August 18th, 2023 UTC)
+- Support a series of new style models in a plug-and-play fashion.  (August 16th, 2023 UTC)
+- Support customizable prompts. (August 16th, 2023 UTC)
+- Colab notebook is available now! You can experience FaceChain directly with  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/modelscope/facechain/blob/main/facechain_demo.ipynb).   (August 15th, 2023 UTC)
+
+
+# To-Do List
+- Support more style models (such as those on Civitai). --on-going, hot
+- Support more beauty-retouch effects
+- Support latest foundation models such as SDXL
+- Support high resolution
+- Support group photo scenario, e.g, multi-person
+- Provide more funny apps
+
+
+# Citation
+
+Please cite FaceChain in your publications if it helps your research
+```
+@article{liu2023facechain,
+  title={FaceChain: A Playground for Identity-Preserving Portrait Generation},
+  author={Liu, Yang and Yu, Cheng and Shang, Lei and Wu, Ziheng and 
+          Wang, Xingjun and Zhao, Yuze and Zhu, Lin and Cheng, Chen and 
+          Chen, Weitao and Xu, Chao and Xie, Haoyu and Yao, Yuan and 
+          Zhou,  Wenmeng and Chen Yingda and Xie, Xuansong and Sun, Baigui},
+  journal={arXiv preprint arXiv:2308.14256},
+  year={2023}
+}
+```
+
 
 # Installation
 
-You may use pip and conda to build a local python environment. We recommend using [Anaconda](https://docs.anaconda.com/anaconda/install/) to manage your dependencies. After installation, execute the following commands:
+## Compatibility Verification
+We have verified e2e execution on the following environment:
+- python: py3.8, py3.10
+- pytorch: torch2.0.0, torch2.0.1
+- tensorflow: 2.8.0, tensorflow-cpu
+- CUDA: 11.7
+- CUDNN: 8+
+- OS: Ubuntu 20.04, CentOS 7.9
+- GPU: Nvidia-A10 24G
+
+## Resource Requirement
+- GPU: About 19G
+- Disk: About 50GB
+
+## Installation Guide
+The following installation methods are supported:
+
+
+### 1. ModelScope notebook【recommended】
+
+   The ModelScope Notebook offers a free-tier that allows ModelScope user to run the FaceChain application with minimum setup, refer to [ModelScope Notebook](https://modelscope.cn/my/mynotebook/preset)
 
 ```shell
-conda create -n facechain python=3.8    # python version >= 3.8
+# Step1: 我的notebook -> PAI-DSW -> GPU环境
+
+# Step2: Entry the Notebook cell，clone FaceChain from github:
+!GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/modelscope/facechain.git --depth 1
+
+# Step3: Change the working directory to facechain:
+import os
+os.chdir('/mnt/workspace/facechain')    # You may change to your own path
+print(os.getcwd())
+
+!pip3 install gradio
+!pip3 install controlnet_aux==0.0.6
+!pip3 install python-slugify
+!python3 app.py
+
+
+# Step4: click "public URL" or "local URL", upload your images to 
+# train your own model and then generate your digital twin.
+```
+   Alternatively, you may also purchase a [PAI-DSW](https://www.aliyun.com/activity/bigdata/pai/dsw) instance (using A10 resource), with the option of ModelScope image to run FaceChain following similar steps.
+
+
+### 2. Docker
+
+If you are familiar with using docker, we recommend to use this way:
+
+```shell
+# Step1: Prepare the environment with GPU on local or cloud, we recommend to use Alibaba Cloud ECS, refer to: https://www.aliyun.com/product/ecs
+
+# Step2: Download the docker image (for installing docker engine, refer to https://docs.docker.com/engine/install/）
+docker pull registry.cn-hangzhou.aliyuncs.com/modelscope-repo/modelscope:ubuntu20.04-cuda11.7.1-py38-torch2.0.1-tf1.15.5-1.8.0
+
+# Step3: run the docker container
+docker run -it --name facechain -p 7860:7860 --gpus all registry.cn-hangzhou.aliyuncs.com/modelscope-repo/modelscope:ubuntu20.04-cuda11.7.1-py38-torch2.0.1-tf1.15.5-1.8.0 /bin/bash
+(Note: you may need to install the nvidia-container-runtime, refer to https://github.com/NVIDIA/nvidia-container-runtime)
+
+# Step4: Install the gradio in the docker container:
+pip3 install gradio
+pip3 install controlnet_aux==0.0.6
+pip3 install python-slugify
+
+# Step5 clone facechain from github
+GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/modelscope/facechain.git --depth 1
+cd facechain
+python3 app.py
+# Note: FaceChain currently assume single-GPU, if your environment has multiple GPU, please use the following instead:
+# CUDA_VISIBLE_DEVICES=0 python3 app.py
+
+# Step6
+Run the app server: click "public URL" --> in the form of: https://xxx.gradio.live
+```
+
+### 3. Conda Virtual Environment
+
+Use the conda virtual environment, and refer to [Anaconda](https://docs.anaconda.com/anaconda/install/) to manage your dependencies. After installation, execute the following commands:
+(Note: mmcv has strict environment requirements and might not be compatible in some cases. It's recommended to use Docker.)
+
+```shell
+conda create -n facechain python=3.8    # Verified environments: 3.8 and 3.10
 conda activate facechain
+
+GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/modelscope/facechain.git --depth 1
+cd facechain
 
 pip3 install -r requirements.txt
 pip3 install -U openmim 
 mim install mmcv-full==1.7.0
-````
 
-You may use the official docker-image provided by ModelScope:
+# Navigate to the facechain directory and run:
+python3 app.py
+# Note: FaceChain currently assume single-GPU, if your environment has multiple GPU, please use the following instead:
+# CUDA_VISIBLE_DEVICES=0 python3 app.py
 
-```shell
-registry.cn-hangzhou.aliyuncs.com/modelscope-repo/modelscope:ubuntu20.04-cuda11.7.1-py38-torch2.0.1-tf1.15.5-1.8.0
-```
-With this docker image, the only thing you need to install is Gradio.
-
-For online training an inference, you may leverage the ModelScope [notebook](https://www.modelscope.cn/my/mynotebook/) to start the process immediately.
-
-Clone the repo:
-
-```shell
-GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/modelscope/facechain.git
-cd facechain
+# Finally, click on the URL generated in the log to access the web page.
 ```
 
-Install dependencies:
+**Note**: After the app service is successfully launched, go to the URL in the log, enter the "Image Customization" tab, click "Select Image to Upload", and choose at least one image with a face. Then, click "Start Training" to begin model training. After the training is completed, there will be corresponding displays in the log. Afterwards, switch to the "Image Experience" tab and click "Start Inference" to generate your own digital image.
 
+*Note* For windows user, you should pay attention to following steps:
 ```shell
-# If you use the official docker image, you only need to execute 
-pip3 install gradio
-
-# If you use the conda env, please refer to section Installation.
+1. reinstall  package pytorch and numpy compatible with tensorflow
+2. install mmcv-full by pip: pip3 install mmcv-full
 ```
 
-Launch Gradio to generate personal digital images:
 
-```shell
-python app.py
-```
+### 4. Colab notebook
 
-You can reference to the Gradio startup log in the log. Once the hyper-link is displayed, copy it to your browser for access. Then click on "Select Image Upload" on the page, and select at least one picture containing a face. Click "Start Training" to train the model. After the training is completed, there will be a corresponding display in the log. Afterward, switch to the "Image Experience" tab and click "Start Inference" to generate your own digital image.
+| Colab | Info
+| --- | --- |
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/modelscope/facechain/blob/main/facechain_demo.ipynb) | FaceChain Installation on Colab
+
+
 
 # Script Execution
 
@@ -73,7 +188,7 @@ FaceChain supports direct training and inference in the python environment. Run 
 PYTHONPATH=. sh train_lora.sh "ly261666/cv_portrait_model" "v2.0" "film/film" "./imgs" "./processed" "./output"
 ```
 
-Parameter meaning:
+Parameters description:
 
 ```text
 ly261666/cv_portrait_model: The stable diffusion base model of the ModelScope model hub, which will be used for training, no need to be changed.
@@ -89,6 +204,12 @@ Wait for 5-20 minutes to complete the training. Users can also adjust other trai
 When inferring, please edit the code in run_inference.py:
 
 ```python
+# Use depth control, default False, only effective when using pose control
+use_depth_control = False
+# Use pose control, default False
+use_pose_model = False
+# The path of the image for pose control, only effective when using pose control
+pose_image = 'poses/man/pose1.png'
 # Fill in the folder of the images after preprocessing above, it should be the same as during training
 processed_dir = './processed'
 # The number of images to generate in inference
@@ -103,6 +224,8 @@ base_model_sub_dir = 'film/film'
 train_output_dir = './output'
 # Specify a folder to save the generated images, this parameter can be modified as needed
 output_dir = './generated'
+# Use Chinese style model, default False
+use_style = False
 ```
 
 Then execute:
@@ -115,9 +238,9 @@ You can find the generated personal digital image photos in the `output_dir`.
 
 # Algorithm Introduction
 
-## Principle
+## Architectural Overview
 
-The ability of the personal portrait model comes from the text generation image function of the Stable Diffusion model. It inputs a piece of text or a series of prompt words and outputs corresponding images. We consider the main factors that affect the generation effect of personal portraits: portrait style information and user character information. For this, we use the style LoRA model trained offline and the face LoRA model trained online to learn the above information. LoRA is a fine-tuning model with fewer trainable parameters. In Stable Diffusion, the information of the input image can be injected into the LoRA model by the way of text generation image training with a small amount of input image. Therefore, the ability of the personal portrait model is divided into training and inference stages. The training stage generates image and text label data for fine-tuning the Stable Diffusion model, and obtains the face LoRA model. The inference stage generates personal portrait images based on the face LoRA model and style LoRA model.
+The ability of the personal portrait generation evolves around the text-to-image capability of Stable Diffusion model. We consider the main factors that affect the generation effect of personal portraits: portrait style information and user character information. For this, we use the style LoRA model trained offline and the face LoRA model trained online to learn the above information. LoRA is a fine-tuning model with fewer trainable parameters. In Stable Diffusion, the information of the input image can be injected into the LoRA model by the way of text generation image training with a small amount of input image. Therefore, the ability of the personal portrait model is divided into training and inference stages. The training stage generates image and text label data for fine-tuning the Stable Diffusion model, and obtains the face LoRA model. The inference stage generates personal portrait images based on the face LoRA model and style LoRA model.
 
 ![image](resources/framework_eng.jpg)
 
@@ -141,13 +264,13 @@ Description: First, we fuse the weights of the face LoRA model and style LoRA mo
 
 The models used in FaceChain:
 
-[1]  Face detection model DamoFD：https://modelscope.cn/models/damo/cv_ddsar_face-detection_iclr23-damof
+[1]  Face detection model DamoFD：https://modelscope.cn/models/damo/cv_ddsar_face-detection_iclr23-damofd
 
 [2]  Image rotating model, offered in the ModelScope studio
 
 [3]  Human parsing model M2FP：https://modelscope.cn/models/damo/cv_resnet101_image-multiple-human-parsing
 
-[4]  Skin retouching model ABPN：https://modelscope.cn/models/damo/cv_unet_skin-retouching
+[4]  Skin retouching model ABPN：https://www.modelscope.cn/models/damo/cv_unet_skin_retouching_torch
 
 [5]  Face attribute recognition model FairFace：https://modelscope.cn/models/damo/cv_resnet34_face-attribute-recognition_fairface
 
@@ -155,7 +278,7 @@ The models used in FaceChain:
 
 [7]  Face quality assessment FQA：https://modelscope.cn/models/damo/cv_manual_face-quality-assessment_fqa
 
-[8]  Face fusion model：https://modelscope.cn/models/damo/cv_unet-image-face-fusion_damo
+[8]  Face fusion model：https://www.modelscope.cn/models/damo/cv_unet_face_fusion_torch
 
 [9]  Face recognition model RTS：https://modelscope.cn/models/damo/cv_ir_face-recognition-ood_rts          
 

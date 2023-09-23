@@ -16,6 +16,7 @@
 """Fine-tuning script for Stable Diffusion for text2image with support for LoRA."""
 
 import argparse
+import base64
 import itertools
 import json
 import logging
@@ -23,34 +24,42 @@ import math
 import os
 import random
 import shutil
+from glob import glob
 from pathlib import Path
 
-import PIL.Image
 import cv2
 import datasets
 import diffusers
 import numpy as np
 import onnxruntime
+import PIL.Image
 import torch
 import torch.nn.functional as F
 import torch.utils.checkpoint
+from torch import Tensor
+from typing import List, Optional, Tuple, Union
+import torchvision.transforms.functional as Ft
 import transformers
-from PIL import Image
 from accelerate import Accelerator
 from accelerate.logging import get_logger
 from accelerate.utils import ProjectConfiguration, set_seed
 from datasets import load_dataset
-from diffusers import AutoencoderKL, DDPMScheduler, DiffusionPipeline, UNet2DConditionModel
+from diffusers import (AutoencoderKL, DDPMScheduler, DiffusionPipeline,
+                       DPMSolverMultistepScheduler,
+                       StableDiffusionInpaintPipeline, UNet2DConditionModel)
 from diffusers.loaders import AttnProcsLayers
 from diffusers.models.attention_processor import LoRAAttnProcessor
 from diffusers.optimization import get_scheduler
 from diffusers.utils import check_min_version, is_wandb_available
 from diffusers.utils.import_utils import is_xformers_available
 from huggingface_hub import create_repo, upload_folder
-from modelscope import snapshot_download
+from facechain.utils import snapshot_download
+
 from packaging import version
+from PIL import Image
 from torchvision import transforms
 from tqdm.auto import tqdm
+from torch import multiprocessing
 from transformers import CLIPTextModel, CLIPTokenizer
 
 from facechain.inference import data_process_fn
@@ -59,6 +68,39 @@ from facechain.inference import data_process_fn
 check_min_version("0.14.0.dev0")
 
 logger = get_logger(__name__, log_level="INFO")
+
+
+class FaceCrop(torch.nn.Module):
+
+    @staticmethod
+    def get_params(img: Tensor) -> Tuple[int, int, int, int]:
+        _, h, w = Ft.get_dimensions(img)
+        if h != w:
+            raise ValueError(f"The input image is not square.")
+        ratio = torch.rand(size=(1,)).item() * 0.1 + 0.35
+        yc = torch.rand(size=(1,)).item() * 0.15 + 0.35
+
+        th = int(h / 1.15 * 0.35 / ratio)
+        tw = th
+
+        cx = int(0.5 * w)
+        cy = int(0.5 / 1.15 * h)
+
+        i = min(max(int(cy - yc * th), 0), h - th)
+        j = int(cx - 0.5 * tw)
+
+        return i, j, th, tw
+
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, img):
+        i, j, h, w = self.get_params(img)
+
+        return Ft.crop(img, i, j, h, w)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}"
 
 
 def save_model_card(repo_id: str, images=None, base_model=str, dataset_name=str, repo_folder=None):
@@ -96,7 +138,8 @@ def softmax(x):
 
 
 def get_rot(image):
-    model_dir = snapshot_download('Cherrytest/rot_bgr', revision='v1.0.0')
+    model_dir = snapshot_download('Cherrytest/rot_bgr',
+                                  revision='v1.0.0')
     model_path = os.path.join(model_dir, 'rot_bgr.onnx')
     # 明确指定所需的执行提供程序（根据你的需求添加或删除）
     providers = ['AzureExecutionProvider', 'CPUExecutionProvider']
@@ -226,7 +269,7 @@ def parse_args():
     parser.add_argument(
         "--num_validation_images",
         type=int,
-        default=4,
+        default=1,
         help="Number of images that should be generated during validation with `validation_prompt`.",
     )
     parser.add_argument(
@@ -466,7 +509,7 @@ def parse_args():
         args.local_rank = env_local_rank
 
     # Sanity checks
-    if args.dataset_name is None and args.train_data_dir is None:
+    if args.dataset_name is None and args.train_data_dir is None and args.output_dataset_name is None:
         raise ValueError("Need either a dataset name or a training folder.")
 
     return args
@@ -478,17 +521,22 @@ DATASET_NAME_MAPPING = {
 
 
 def main():
+
     args = parse_args()
     logging_dir = os.path.join(args.output_dir, args.logging_dir)
-    shutil.rmtree(args.output_dataset_name, ignore_errors=True)
     shutil.rmtree(args.output_dir, ignore_errors=True)
     os.makedirs(args.output_dir)
-    args.dataset_name = [os.path.join(args.dataset_name, x) for x in os.listdir(args.dataset_name)]
 
-    print('All input images:', args.dataset_name)
-    prepare_dataset(args.dataset_name, args.output_dataset_name)
-    ## Our data process fn
-    data_process_fn(input_img_dir=args.output_dataset_name, use_data_process=True)
+    if args.dataset_name is not None:
+        # if dataset_name is None, then it's called from the gradio
+        # the data processing will be executed in the app.py to save the gpu memory.
+        print('All input images:', args.dataset_name)
+        args.dataset_name = [os.path.join(args.dataset_name, x) for x in os.listdir(args.dataset_name)]
+        shutil.rmtree(args.output_dataset_name, ignore_errors=True)
+        prepare_dataset(args.dataset_name, args.output_dataset_name)
+        ## Our data process fn
+        data_process_fn(input_img_dir=args.output_dataset_name, use_data_process=True)
+
     args.dataset_name = args.output_dataset_name + '_labeled'
 
     accelerator_project_config = ProjectConfiguration(
@@ -537,7 +585,9 @@ def main():
             ).repo_id
 
     ## Download foundation Model
-    model_dir = snapshot_download(args.pretrained_model_name_or_path, revision=args.revision)
+    model_dir = snapshot_download(args.pretrained_model_name_or_path,
+                                  revision=args.revision,
+                                  user_agent={'invoked_by': 'trainer', 'third_party': 'facechain'})
 
     if args.sub_path is not None and len(args.sub_path) > 0:
         model_dir = os.path.join(model_dir, args.sub_path)
@@ -621,10 +671,9 @@ def main():
                 block_id = int(name[len("down_blocks.")])
                 hidden_size = unet.config.block_out_channels[block_id]
 
-            lora_attn_procs[name] = LoRAAttnProcessor(hidden_size=hidden_size, cross_attention_dim=cross_attention_dim)
+            lora_attn_procs[name] = LoRAAttnProcessor(hidden_size=hidden_size, cross_attention_dim=cross_attention_dim, rank=args.lora_r)
 
         unet.set_attn_processor(lora_attn_procs)
-        lora_layers = AttnProcsLayers(unet.attn_processors)
 
     # Move unet, vae and text_encoder to device and cast to weight_dtype
     vae.to(accelerator.device, dtype=weight_dtype)
@@ -682,6 +731,7 @@ def main():
             eps=args.adam_epsilon,
         )
     else:
+        lora_layers = AttnProcsLayers(unet.attn_processors)
         optimizer = optimizer_cls(
             lora_layers.parameters(),
             lr=args.learning_rate,
@@ -703,6 +753,7 @@ def main():
             cache_dir=args.cache_dir,
         )
     else:
+        # This branch will not be called
         data_files = {}
         if args.train_data_dir is not None:
             data_files["train"] = os.path.join(args.train_data_dir, "**")
@@ -759,8 +810,10 @@ def main():
     # Preprocessing the datasets.
     train_transforms = transforms.Compose(
         [
+            #transforms.Resize(args.resolution, interpolation=transforms.InterpolationMode.BILINEAR),
+            #transforms.CenterCrop(args.resolution) if args.center_crop else transforms.RandomCrop(args.resolution),
+            FaceCrop(),
             transforms.Resize(args.resolution, interpolation=transforms.InterpolationMode.BILINEAR),
-            transforms.CenterCrop(args.resolution) if args.center_crop else transforms.RandomCrop(args.resolution),
             transforms.RandomHorizontalFlip() if args.random_flip else transforms.Lambda(lambda x: x),
             transforms.ToTensor(),
             transforms.Normalize([0.5], [0.5]),
@@ -850,7 +903,12 @@ def main():
 
     # Potentially load in the weights and states from a previous save
     if args.resume_from_checkpoint:
-        if args.resume_from_checkpoint != "latest":
+        if args.resume_from_checkpoint == 'fromfacecommon':
+            weight_model_dir = snapshot_download('damo/face_frombase_c4',
+                                                 revision='v1.0.0',
+                                                 user_agent={'invoked_by': 'trainer', 'third_party': 'facechain'})
+            path = os.path.join(weight_model_dir, 'face_frombase_c4.bin')
+        elif args.resume_from_checkpoint != "latest":
             path = os.path.basename(args.resume_from_checkpoint)
         else:
             # Get the most recent checkpoint
@@ -865,9 +923,15 @@ def main():
             )
             args.resume_from_checkpoint = None
         else:
-            accelerator.print(f"Resuming from checkpoint {path}")
-            accelerator.load_state(os.path.join(args.output_dir, path))
-            global_step = int(path.split("-")[1])
+            if args.resume_from_checkpoint == 'fromfacecommon':
+                accelerator.print(f"Resuming from checkpoint {path}")
+                unet_state_dict = torch.load(path, map_location='cpu')
+                accelerator._models[-1].load_state_dict(unet_state_dict)
+                global_step = 0
+            else:
+                accelerator.print(f"Resuming from checkpoint {path}")
+                accelerator.load_state(os.path.join(args.output_dir, path))
+                global_step = int(path.split("-")[1])
 
             resume_global_step = global_step * args.gradient_accumulation_steps
             first_epoch = global_step // num_update_steps_per_epoch
@@ -959,13 +1023,13 @@ def main():
             if global_step >= args.max_train_steps:
                 break
 
+
         if accelerator.is_main_process:
             if args.validation_prompt is not None and epoch % args.validation_epochs == 0:
                 logger.info(
                     f"Running validation... \n Generating {args.num_validation_images} images with prompt:"
                     f" {args.validation_prompt}."
                 )
-                # create pipeline
                 pipeline = DiffusionPipeline.from_pretrained(
                     model_dir,
                     unet=accelerator.unwrap_model(unet),
@@ -999,7 +1063,7 @@ def main():
                             )
 
                 del pipeline
-                torch.cuda.empty_cache()
+                torch.cuda.empty_cache() 
 
     # Save the lora layers
     accelerator.wait_for_everyone()
@@ -1025,7 +1089,7 @@ def main():
                 json.dump(lora_config, f)
         else:
             unet = unet.to(torch.float32)
-            unet.save_attn_procs(args.output_dir)
+            unet.save_attn_procs(args.output_dir, safe_serialization=False)
 
         if args.push_to_hub:
             save_model_card(
@@ -1049,7 +1113,6 @@ def main():
     )
 
     if args.use_peft:
-
         def load_and_set_lora_ckpt(pipe, ckpt_dir, global_step, device, dtype):
             with open(os.path.join(args.output_dir, f"{global_step}_lora_config.json"), "r") as f:
                 lora_config = json.load(f)
@@ -1096,4 +1159,5 @@ def main():
 
 
 if __name__ == "__main__":
+    multiprocessing.set_start_method('spawn')
     main()

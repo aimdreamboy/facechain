@@ -9,67 +9,181 @@
 
 # 介绍
 
-FaceChain是一个可以用来打造个人数字形象的深度学习模型工具。用户仅需要提供最低三张照片即可获得独属于自己的个人形象数字替身。FaceChain支持在gradio的界面中使用模型训练和推理能力，也支持资深开发者使用python脚本进行训练推理。同时，FaceChain欢迎开发者对本Repo进行继续开发和贡献。
-
-您也可以在[ModelScope创空间](https://modelscope.cn/studios/CVstudio/cv_human_portrait/summary)中直接体验这项技术而无需安装任何软件。
-
+FaceChain是一个可以用来打造个人数字形象的深度学习模型工具。用户仅需要提供最低一张照片即可获得独属于自己的个人形象数字替身。FaceChain支持在gradio的界面中使用模型训练和推理能力，也支持资深开发者使用python脚本进行训练推理；同时，我们也欢迎开发者对本Repo进行继续开发和贡献。
 FaceChain的模型由[ModelScope](https://github.com/modelscope/modelscope)开源模型社区提供支持。
 
-![image](resources/example1.jpg)
+<p align="center">
+        ModelScope Studio <a href="https://modelscope.cn/studios/CVstudio/cv_human_portrait/summary">🤖<a></a>&nbsp ｜ HuggingFace Space <a href="https://huggingface.co/spaces/modelscope/FaceChain">🤗</a>&nbsp 
+</p>
+<br>
 
-![image](resources/example2.jpg)
+![image](resources/git_cover_CH.jpg)
+![image](resources/git_cover_1.jpg)
+![image](resources/git_cover_2.jpg)
 
-![image](resources/example3.jpg)
 
-# 安装
+# News
+- 高性能的(单人&双人)模版重绘功能，简化用户界面. (2023-09-09)
+- 更多技术细节可以在 [论文](https://arxiv.org/abs/2308.14256) 里查看. (2023-08-30)
+- 为Lora训练添加验证和根据face_id的融合，并添加InpaintTab（目前在Gradio界面上暂时默认隐藏）. (2023-08-28)
+- 增加姿势控制模块，可一键体验模版pose复刻. (2023-08-27)
+- 增加鲁棒性人脸lora训练，提升单图训练&风格lora融合的效果. (2023-08-27)
+- 支持在HuggingFace Space中体验FaceChain ！ <a href="https://huggingface.co/spaces/modelscope/FaceChain">🤗</a>      (2023-08-25)
+- 新增高质量提示词模板，欢迎大家一起贡献！ 参考 [awesome-prompts-facechain](resources/awesome-prompts-facechain.txt)    (2023-08-18)
+- 支持即插即用的风格LoRA模型！ (2023-08-16)
+- 新增个性化prompt模块！ (2023-08-16)
+- Colab notebook安装已支持，您可以直接打开链接体验FaceChain： [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/modelscope/facechain/blob/main/facechain_demo.ipynb)   (2023-08-15)
 
-您也可以使用pip和conda搭建本地python环境，我们推荐使用[Anaconda](https://docs.anaconda.com/anaconda/install/)来管理您的依赖，安装完成后，执行如下命令：
+
+# 待办事项
+- 现成风格模型即插即用（以C站风格模型为例）   --迭代中
+- 增加更多美肤功能
+- 适配更多的基模，例如SDXL
+- 增加超分模块
+- 支持多人保id照片生成
+- 开发更多好玩的app
+
+
+# Citation
+
+如果FaceChain对您的研究有所帮助，请在您的出版物中引用FaceChain
+```
+@article{liu2023facechain,
+  title={FaceChain: A Playground for Identity-Preserving Portrait Generation},
+  author={Liu, Yang and Yu, Cheng and Shang, Lei and Wu, Ziheng and 
+          Wang, Xingjun and Zhao, Yuze and Zhu, Lin and Cheng, Chen and 
+          Chen, Weitao and Xu, Chao and Xie, Haoyu and Yao, Yuan and 
+          Zhou,  Wenmeng and Chen Yingda and Xie, Xuansong and Sun, Baigui},
+  journal={arXiv preprint arXiv:2308.14256},
+  year={2023}
+```
+
+# 环境准备
+
+## 兼容性验证
+FaceChain是一个组合模型，使用了包括PyTorch和TensorFlow在内的机器学习框架，以下是已经验证过的主要环境依赖：
+- python环境: py3.8, py3.10
+- pytorch版本: torch2.0.0, torch2.0.1
+- tensorflow版本: 2.8.0, tensorflow-cpu
+- CUDA版本: 11.7
+- CUDNN版本: 8+
+- 操作系统版本: Ubuntu 20.04, CentOS 7.9
+- GPU型号: Nvidia-A10 24G
+
+
+## 资源要求
+- GPU: 显存占用约19G
+- 磁盘: 推荐预留50GB以上的存储空间
+
+
+## 安装指南
+支持以下几种安装方式，任选其一：
+
+### 1. 使用ModelScope提供的notebook环境【推荐】
+ModelScope(魔搭社区)提供给新用户初始的免费计算资源，参考[ModelScope Notebook](https://modelscope.cn/my/mynotebook/preset)
+    
+如果初始免费计算资源无法满足要求，您还可以从上述页面开通付费流程，以便创建一个准备就绪的ModelScope(GPU) DSW镜像实例。
+    
+Notebook环境使用简单，您只需要按以下步骤操作（注意：目前暂不提供永久存储，实例重启后数据会丢失）：
+
 
 ```shell
-conda create -n facechain python=3.8    # python version >= 3.8
+# Step1: 我的notebook -> PAI-DSW -> GPU环境
+
+# Step2: 进入Notebook cell，执行下述命令从github clone代码：
+!GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/modelscope/facechain.git --depth 1
+
+# Step3: 切换当前工作路径
+import os
+os.chdir('/mnt/workspace/facechain')    # 注意替换成上述clone后的代码文件夹主路径
+print(os.getcwd())
+
+!pip3 install gradio
+!pip3 install controlnet_aux==0.0.6
+!pip3 install python-slugify
+!python3 app.py
+
+# Step4: 点击生成的URL即可访问web页面，上传照片开始训练和预测
+```
+
+除了ModelScope入口以外，您也可以前往[PAI-DSW](https://www.aliyun.com/activity/bigdata/pai/dsw) 直接购买带有ModelScope镜像的计算实例（推荐使用A10资源），这样同样可以使用如上的最简步骤运行起来。
+
+
+
+### 2. docker镜像
+
+如果您熟悉docker，可以使用我们提供的docker镜像，其包含了模型依赖的所有组件，无需复杂的环境安装：
+```shell
+# Step1: 机器资源
+您可以使用本地或云端带有GPU资源的运行环境。
+如需使用阿里云ECS，可访问： https://www.aliyun.com/product/ecs，推荐使用”镜像市场“中的CentOS 7.9 64位(预装NVIDIA GPU驱动)
+
+# Step2: 将镜像下载到本地 （前提是已经安装了docker engine并启动服务，具体可参考： https://docs.docker.com/engine/install/）
+docker pull registry.cn-hangzhou.aliyuncs.com/modelscope-repo/modelscope:ubuntu20.04-cuda11.7.1-py38-torch2.0.1-tf1.15.5-1.8.0
+
+# Step3: 拉起镜像运行
+docker run -it --name facechain -p 7860:7860 --gpus all registry.cn-hangzhou.aliyuncs.com/modelscope-repo/modelscope:ubuntu20.04-cuda11.7.1-py38-torch2.0.1-tf1.15.5-1.8.0 /bin/bash  # 注意 your_xxx_image_id 替换成你的镜像id
+# (注意： 如果提示无法使用宿主机GPU的错误，可能需要安装nvidia-container-runtime, 参考：https://github.com/NVIDIA/nvidia-container-runtime)
+
+# Step4: 在容器中安装gradio
+pip3 install gradio
+pip3 install controlnet_aux==0.0.6
+pip3 install python-slugify
+
+# Step5: 获取facechain源代码
+GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/modelscope/facechain.git --depth 1
+cd facechain
+python3 app.py
+# Note: FaceChain目前支持单卡GPU，如果您的环境有多卡，请使用如下命令
+# CUDA_VISIBLE_DEVICES=0 python3 app.py
+
+# Step6: 点击 "public URL", 形式为 https://xxx.gradio.live
+```
+
+
+### 3. conda虚拟环境
+
+使用conda虚拟环境，参考[Anaconda](https://docs.anaconda.com/anaconda/install/)来管理您的依赖，安装完成后，执行如下命令：
+(提示： mmcv对环境要求较高，可能出现不适配的情况，推荐使用docker方式)
+
+```shell
+conda create -n facechain python=3.8    # 已验证环境：3.8 和 3.10
 conda activate facechain
+
+GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/modelscope/facechain.git --depth 1
+cd facechain
 
 pip3 install -r requirements.txt
 pip3 install -U openmim 
 mim install mmcv-full==1.7.0
+
+# 进入facechain文件夹，执行：
+python3 app.py
+# Note: FaceChain目前支持单卡GPU，如果您的环境有多卡，请使用如下命令
+# CUDA_VISIBLE_DEVICES=0 python3 app.py
+
+# 最后点击log中生成的URL即可访问页面。
 ```
 
-或者，您可以使用ModelScope提供的官方镜像，这样您只需要安装gradio即可使用：
-
+备注：如果是Windows环境还需要注意以下步骤：
 ```shell
-registry.cn-hangzhou.aliyuncs.com/modelscope-repo/modelscope:ubuntu20.04-cuda11.7.1-py38-torch2.0.1-tf1.15.5-1.8.0
+# 1. 重新安装pytorch、与tensorflow匹配的numpy
+# 2. pip方式安装mmcv-full: pip3 install mmcv-full
 ```
 
-我们也推荐使用我们的[notebook](https://www.modelscope.cn/my/mynotebook/preset)来进行训练和推理。
+### 4. colab运行
 
-将本仓库克隆到本地：
-
-```shell
-GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/modelscope/facechain.git
-cd facechain
-```
-
-安装依赖：
-
-```shell
-# 如果使用了官方镜像，只需要执行
-pip3 install gradio
-
-# 如果使用conda虚拟环境，则参考上述”安装“章节
-```
+| Colab | Info
+| --- | --- |
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/modelscope/facechain/blob/main/facechain_demo.ipynb) | FaceChain Installation on Colab
 
 
-运行gradio来生成个人数字形象：
 
-```shell
-python app.py
-```
-
-您可以看到log中的gradio启动日志，等待展示出http链接后，将http链接复制到浏览器中进行访问。之后在页面中点击“选择图片上传”，并选择最少一张包含人脸的图片。点击“开始训练”即可训练模型。训练完成后日志中会有对应展示，之后切换到“形象体验”标签页点击“开始推理”即可生成属于自己的数字形象。
+备注：app服务成功启动后，在log中访问页面URL，进入”形象定制“tab页，点击“选择图片上传”，并最少选1张包含人脸的图片；点击“开始训练”即可训练模型。训练完成后日志中会有对应展示，之后切换到“形象体验”标签页点击“开始生成”即可生成属于自己的数字形象。
 
 # 脚本运行
 
-FaceChain支持在python环境中直接进行训练和推理。在克隆后的文件夹中直接运行如下命令来进行训练：
+如果不想启动服务，而是直接在命令行进行开发调试等工作，FaceChain也支持在python环境中直接运行脚本进行训练和推理。在克隆后的文件夹中直接运行如下命令来进行训练：
 
 ```shell
 PYTHONPATH=. sh train_lora.sh "ly261666/cv_portrait_model" "v2.0" "film/film" "./imgs" "./processed" "./output"
@@ -91,6 +205,12 @@ film/film: 该基模型包含了多个不同风格的子目录，其中使用了
 进行推理时，请编辑run_inference.py中的代码:
 
 ```python
+# 使用深度控制，默认False，仅在使用姿态控制时生效
+use_depth_control = False
+# 使用姿态控制，默认False
+use_pose_model = False
+# 姿态控制图片路径，仅在使用姿态控制时生效
+pose_image = 'poses/man/pose1.png'
 # 填入上述的预处理之后的图片文件夹，需要和训练时相同
 processed_dir = './processed'
 # 推理生成的图片数量
@@ -105,6 +225,8 @@ base_model_sub_dir = 'film/film'
 train_output_dir = './output'
 # 指定一个保存生成的图片的文件夹，本参数可以根据需要修改
 output_dir = './generated'
+# 使用凤冠霞帔风格模型，默认False
+use_style = False
 ```
 
 之后执行：
@@ -143,13 +265,13 @@ python run_inference.py
 
 附（流程图中模型链接）
 
-[1]  人脸检测+关键点模型DamoFD：https://modelscope.cn/models/damo/cv_ddsar_face-detection_iclr23-damof
+[1]  人脸检测+关键点模型DamoFD：https://modelscope.cn/models/damo/cv_ddsar_face-detection_iclr23-damofd
 
 [2]  图像旋转模型：创空间内置模型
 
 [3]  人体解析模型M2FP：https://modelscope.cn/models/damo/cv_resnet101_image-multiple-human-parsing
 
-[4]  人像美肤模型ABPN：https://modelscope.cn/models/damo/cv_unet_skin-retouching
+[4]  人像美肤模型ABPN：https://www.modelscope.cn/models/damo/cv_unet_skin_retouching_torch
 
 [5]  人脸属性模型FairFace：https://modelscope.cn/models/damo/cv_resnet34_face-attribute-recognition_fairface
 
@@ -157,7 +279,7 @@ python run_inference.py
 
 [7]  模板脸筛选模型FQA：https://modelscope.cn/models/damo/cv_manual_face-quality-assessment_fqa
 
-[8]  人脸融合模型：https://modelscope.cn/models/damo/cv_unet-image-face-fusion_damo
+[8]  人脸融合模型：https://www.modelscope.cn/models/damo/cv_unet_face_fusion_torch
 
 [9]  人脸识别模型RTS：https://modelscope.cn/models/damo/cv_ir_face-recognition-ood_rts                                  
 
